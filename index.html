@@ -1,79 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Двусторонний чат с переводом</title>
-  <style>
-    body { font-family: Arial; margin: 20px; }
-    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
-    .msg { margin-bottom: 8px; }
-    .you { color: blue; }
-    .other { color: green; }
-    .translated { font-size: 0.9em; color: gray; }
-    input, select { margin-top: 5px; }
-  </style>
-</head>
-<body>
-  <h2>Двусторонний чат с переводом</h2>
-  <div>
-    <label>Мой язык:
-      <select id="userLang">
-        <option value="ru">Русский</option>
-        <option value="en">Английский</option>
-        <option value="de">Немецкий</option>
-      </select>
-    </label>
-    <label>Язык собеседника:
-      <select id="peerLang">
-        <option value="de">Немецкий</option>
-        <option value="en">Английский</option>
-        <option value="ru">Русский</option>
-      </select>
-    </label>
-  </div>
-  <div id="chat"></div>
-  <input type="text" id="message" placeholder="Введите сообщение...">
-  <button onclick="sendMessage()">Отправить</button>
+<script>
+  const chat = document.getElementById('chat');
 
-  <script>
-    const chat = document.getElementById('chat');
-
-    function appendMessage(text, translated, from) {
-      const div = document.createElement('div');
-      div.className = 'msg ' + from;
-      div.innerHTML = `${from === 'you' ? 'Вы' : 'Собеседник'}: ${text}`;
-      if (translated) {
-        const trans = document.createElement('div');
-        trans.className = 'translated';
-        trans.textContent = `(${translated})`;
-        div.appendChild(trans);
-      }
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
+  function appendMessage(text, translated, from, name = '') {
+    const div = document.createElement('div');
+    div.className = 'msg ' + from;
+    div.innerHTML = `<strong>${name || (from === 'you' ? 'Вы' : 'Собеседник')}</strong>: ${text}`;
+    if (translated) {
+      const trans = document.createElement('div');
+      trans.className = 'translated';
+      trans.textContent = `(${translated})`;
+      div.appendChild(trans);
     }
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-    async function translate(text, sourceLang, targetLang) {
+  async function translate(text, sourceLang, targetLang) {
+    try {
       const res = await fetch('https://libretranslate.de/translate', {
         method: 'POST',
-        body: JSON.stringify({ q: text, source: sourceLang, target: targetLang, format: 'text' }),
-        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: text,
+          source: sourceLang,
+          target: targetLang,
+          format: 'text'
+        }),
+        headers: { 'Content-Type': 'application/json' }
       });
+
+      if (!res.ok) throw new Error('Ошибка перевода');
+
       const data = await res.json();
       return data.translatedText;
+    } catch (err) {
+      console.error('Ошибка при переводе:', err);
+      return '[Ошибка перевода]';
     }
+  }
 
-    async function sendMessage() {
-      const input = document.getElementById('message');
-      const userLang = document.getElementById('userLang').value;
-      const peerLang = document.getElementById('peerLang').value;
-      const text = input.value;
-      input.value = '';
+  async function sendMessage() {
+    const input = document.getElementById('message');
+    const userLang = document.getElementById('userLang').value;
+    const peerLang = document.getElementById('peerLang').value;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
 
-      appendMessage(text, null, 'you');
+    appendMessage(text, null, 'you');
 
-      const translated = await translate(text, userLang, peerLang);
-      appendMessage(translated, text, 'other');
-    }
-  </script>
-</body>
-</html>
+    const translated = await translate(text, userLang, peerLang);
+    appendMessage(translated, text, 'other');
+  }
+</script>
